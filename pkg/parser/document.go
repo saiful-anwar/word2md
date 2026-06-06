@@ -110,37 +110,42 @@ func (dr *DocumentReader) parseParagraph(node xmlNode) (*models.Paragraph, error
 	return para, nil
 }
 
+// parseRunProperties extracts formatting properties from an rPr XML node into a TextRun.
+func (dr *DocumentReader) parseRunProperties(rPr xmlNode, run *models.TextRun) {
+	if bNode := rPr.FindChild("b"); bNode != nil {
+		val := bNode.AttrVal("", "val")
+		run.Bold = val != "0" && val != "false"
+	}
+	if iNode := rPr.FindChild("i"); iNode != nil {
+		val := iNode.AttrVal("", "val")
+		run.Italic = val != "0" && val != "false"
+	}
+	if strikeNode := rPr.FindChild("strike"); strikeNode != nil {
+		val := strikeNode.AttrVal("", "val")
+		run.Strikethrough = val != "0" && val != "false"
+	}
+	if szNode := rPr.FindChild("sz"); szNode != nil {
+		run.FontSize = szNode.AttrInt("val")
+	}
+	if colorNode := rPr.FindChild("color"); colorNode != nil {
+		run.Color = colorNode.AttrVal("", "val")
+	}
+	if rFonts := rPr.FindChild("rFonts"); rFonts != nil {
+		run.FontName = rFonts.AttrVal("", "ascii")
+	}
+	// Detect code style by font name
+	if run.FontName == "Courier New" || run.FontName == "Consolas" || run.FontName == "Monospace" {
+		run.Code = true
+	}
+}
+
 func (dr *DocumentReader) parseRun(node xmlNode) (*models.TextRun, error) {
 	run := &models.TextRun{}
 
 	for _, child := range node.Children {
 		switch child.XMLName.Local {
 		case "rPr":
-			if bNode := child.FindChild("b"); bNode != nil {
-				val := bNode.AttrVal("", "val")
-				run.Bold = val != "0" && val != "false"
-			}
-			if iNode := child.FindChild("i"); iNode != nil {
-				val := iNode.AttrVal("", "val")
-				run.Italic = val != "0" && val != "false"
-			}
-			if strikeNode := child.FindChild("strike"); strikeNode != nil {
-				val := strikeNode.AttrVal("", "val")
-				run.Strikethrough = val != "0" && val != "false"
-			}
-			if szNode := child.FindChild("sz"); szNode != nil {
-				run.FontSize = szNode.AttrInt("val")
-			}
-			if colorNode := child.FindChild("color"); colorNode != nil {
-				run.Color = colorNode.AttrVal("", "val")
-			}
-			if rFonts := child.FindChild("rFonts"); rFonts != nil {
-				run.FontName = rFonts.AttrVal("", "ascii")
-			}
-			// Detect code style by font name
-			if run.FontName == "Courier New" || run.FontName == "Consolas" || run.FontName == "Monospace" {
-				run.Code = true
-			}
+			dr.parseRunProperties(child, run)
 		case "t":
 			run.Text += child.Content
 		case "br":

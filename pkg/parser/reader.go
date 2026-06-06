@@ -36,6 +36,61 @@ func (r *DefaultReader) WithImageDir(dir string) *DefaultReader {
 	return r
 }
 
+// readStyles reads and parses word/styles.xml from the archive.
+func (r *DefaultReader) readStyles(archive *Archive, parsed *ParsedDocument) {
+	if !archive.FileExists("word/styles.xml") {
+		return
+	}
+	stylesData, err := archive.ReadFile("word/styles.xml")
+	if err != nil {
+		parsed.Warnings = append(parsed.Warnings, fmt.Errorf("read styles.xml: %w", err))
+		return
+	}
+	stylesReader := NewStylesReader()
+	parsed.Styles, err = stylesReader.Read(stylesData)
+	if err != nil {
+		parsed.Warnings = append(parsed.Warnings, fmt.Errorf("parse styles: %w", err))
+	}
+}
+
+// readRelationships reads and parses word/_rels/document.xml.rels from the archive.
+func (r *DefaultReader) readRelationships(archive *Archive, parsed *ParsedDocument) {
+	if !archive.FileExists("word/_rels/document.xml.rels") {
+		return
+	}
+	relsData, err := archive.ReadFile("word/_rels/document.xml.rels")
+	if err != nil {
+		parsed.Warnings = append(parsed.Warnings, fmt.Errorf("read relationships: %w", err))
+		return
+	}
+	relsReader := NewRelationshipsReader()
+	parsed.Relationships, err = relsReader.Read(relsData)
+	if err != nil {
+		parsed.Warnings = append(parsed.Warnings, fmt.Errorf("parse relationships: %w", err))
+	}
+}
+
+// resolveHyperlinks replaces placeholder relationship IDs in hyperlinks with actual URLs.
+func (r *DefaultReader) resolveHyperlinks(parsed *ParsedDocument) {
+	if parsed.Relationships == nil {
+		return
+	}
+	for i := range parsed.Document.Body {
+		if parsed.Document.Body[i].Kind != models.KindParagraph {
+			continue
+		}
+		para := parsed.Document.Body[i].Value.(*models.Paragraph)
+		for j := range para.Runs {
+			if para.Runs[j].Hyperlink == nil {
+				continue
+			}
+			if rel, ok := parsed.Relationships.Items[para.Runs[j].Hyperlink.URL]; ok {
+				para.Runs[j].Hyperlink.URL = rel.Target
+			}
+		}
+	}
+}
+
 // Parse parses a DOCX file at the given path.
 func (r *DefaultReader) Parse(path string) (*ParsedDocument, error) {
 	archive, err := OpenArchive(path)
@@ -60,49 +115,9 @@ func (r *DefaultReader) Parse(path string) (*ParsedDocument, error) {
 		return nil, fmt.Errorf("parse document: %w", err)
 	}
 
-	// Read styles.xml
-	if archive.FileExists("word/styles.xml") {
-		stylesData, err := archive.ReadFile("word/styles.xml")
-		if err != nil {
-			parsed.Warnings = append(parsed.Warnings, fmt.Errorf("read styles.xml: %w", err))
-		} else {
-			stylesReader := NewStylesReader()
-			parsed.Styles, err = stylesReader.Read(stylesData)
-			if err != nil {
-				parsed.Warnings = append(parsed.Warnings, fmt.Errorf("parse styles: %w", err))
-			}
-		}
-	}
-
-	// Read relationships
-	if archive.FileExists("word/_rels/document.xml.rels") {
-		relsData, err := archive.ReadFile("word/_rels/document.xml.rels")
-		if err != nil {
-			parsed.Warnings = append(parsed.Warnings, fmt.Errorf("read relationships: %w", err))
-		} else {
-			relsReader := NewRelationshipsReader()
-			parsed.Relationships, err = relsReader.Read(relsData)
-			if err != nil {
-				parsed.Warnings = append(parsed.Warnings, fmt.Errorf("parse relationships: %w", err))
-			}
-		}
-	}
-
-	// Resolve hyperlinks
-	if parsed.Relationships != nil {
-		for i := range parsed.Document.Body {
-			if parsed.Document.Body[i].Kind == models.KindParagraph {
-				para := parsed.Document.Body[i].Value.(*models.Paragraph)
-				for j := range para.Runs {
-					if para.Runs[j].Hyperlink != nil {
-						if rel, ok := parsed.Relationships.Items[para.Runs[j].Hyperlink.URL]; ok {
-							para.Runs[j].Hyperlink.URL = rel.Target
-						}
-					}
-				}
-			}
-		}
-	}
+	r.readStyles(archive, parsed)
+	r.readRelationships(archive, parsed)
+	r.resolveHyperlinks(parsed)
 
 	return parsed, nil
 }

@@ -73,6 +73,19 @@ func (d *Detector) DetectHeading(para *models.Paragraph, styles *models.StyleShe
 	return 0, false
 }
 
+// headingPatterns maps known heading style name fragments to their level.
+var headingPatterns = []struct {
+	patterns []string
+	level    int
+}{
+	{[]string{"heading 1", "heading1", "标题 1", "标题1"}, 1},
+	{[]string{"heading 2", "heading2", "标题 2", "标题2"}, 2},
+	{[]string{"heading 3", "heading3", "标题 3", "标题3"}, 3},
+	{[]string{"heading 4", "heading4", "标题 4", "标题4"}, 4},
+	{[]string{"heading 5", "heading5", "标题 5", "标题5"}, 5},
+	{[]string{"heading 6", "heading6", "标题 6", "标题6"}, 6},
+}
+
 func (d *Detector) detectByStyleName(para *models.Paragraph, styles *models.StyleSheet) int {
 	if styles == nil || para.StyleID == "" {
 		return 0
@@ -84,25 +97,13 @@ func (d *Detector) detectByStyleName(para *models.Paragraph, styles *models.Styl
 	}
 
 	name := strings.ToLower(style.Name)
-	if strings.Contains(name, "heading 1") || strings.Contains(name, "heading1") || strings.Contains(name, "标题 1") || strings.Contains(name, "标题1") {
-		return 1
+	for _, hp := range headingPatterns {
+		for _, p := range hp.patterns {
+			if strings.Contains(name, p) {
+				return hp.level
+			}
+		}
 	}
-	if strings.Contains(name, "heading 2") || strings.Contains(name, "heading2") || strings.Contains(name, "标题 2") || strings.Contains(name, "标题2") {
-		return 2
-	}
-	if strings.Contains(name, "heading 3") || strings.Contains(name, "heading3") || strings.Contains(name, "标题 3") || strings.Contains(name, "标题3") {
-		return 3
-	}
-	if strings.Contains(name, "heading 4") || strings.Contains(name, "heading4") || strings.Contains(name, "标题 4") || strings.Contains(name, "标题4") {
-		return 4
-	}
-	if strings.Contains(name, "heading 5") || strings.Contains(name, "heading5") || strings.Contains(name, "标题 5") || strings.Contains(name, "标题5") {
-		return 5
-	}
-	if strings.Contains(name, "heading 6") || strings.Contains(name, "heading6") || strings.Contains(name, "标题 6") || strings.Contains(name, "标题6") {
-		return 6
-	}
-
 	return 0
 }
 

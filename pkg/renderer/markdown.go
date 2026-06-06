@@ -263,38 +263,44 @@ func (hr *HeadingRenderer) RenderParagraphWithHeading(para *models.Paragraph, st
 	return hr.MarkdownRenderer.renderParagraph(para)
 }
 
+// wideRanges defines Unicode blocks whose runes occupy two display columns.
+var wideRanges = []struct{ start, end rune }{
+	{0x1100, 0x115F},   // Hangul Jamo
+	{0x2E80, 0x2FDF},   // CJK Radicals / Kangxi
+	{0x3000, 0x303F},   // CJK Symbols & Punctuation
+	{0x3040, 0x309F},   // Hiragana
+	{0x30A0, 0x30FF},   // Katakana
+	{0x3100, 0x312F},   // Bopomofo
+	{0x3130, 0x318F},   // Hangul Compatibility Jamo
+	{0x31A0, 0x31BF},   // Bopomofo Extended
+	{0x31C0, 0x31EF},   // CJK Strokes
+	{0x3200, 0x33FF},   // Enclosed CJK / CJK Compatibility
+	{0x3400, 0x4DBF},   // CJK Extension A
+	{0x4E00, 0x9FFF},   // CJK Unified Ideographs
+	{0xAC00, 0xD7AF},   // Hangul Syllables
+	{0xF900, 0xFAFF},   // CJK Compatibility Ideographs
+	{0xFE10, 0xFE19},   // Vertical Forms
+	{0xFE30, 0xFE6F},   // CJK Compatibility Forms
+	{0xFF01, 0xFF60},   // Fullwidth Forms
+	{0xFFE0, 0xFFE6},   // Fullwidth Signs
+	{0x1B000, 0x1B0FF}, // Kana Supplement
+	{0x1F200, 0x1F2FF}, // Enclosed Ideographic Supplement
+	{0x20000, 0x2A6DF}, // CJK Extension B
+	{0x2A700, 0x2B73F}, // CJK Extension C
+	{0x2B740, 0x2B81F}, // CJK Extension D
+	{0x2B820, 0x2CEAF}, // CJK Extension E
+	{0x2F800, 0x2FA1F}, // CJK Compatibility Supplement
+	{0x30000, 0x3134F}, // CJK Extension G
+}
+
 // isWideRune reports whether r is a rune that occupies two display columns.
-// It covers CJK, Hangul, Hiragana, Katakana, Bopomofo, and fullwidth forms.
 func isWideRune(r rune) bool {
-	if r < 0x1100 {
-		return false
+	for _, rng := range wideRanges {
+		if r >= rng.start && r <= rng.end {
+			return true
+		}
 	}
-	return (r >= 0x1100 && r <= 0x115F) || // Hangul Jamo
-		(r >= 0x2E80 && r <= 0x2FDF) || // CJK Radicals / Kangxi
-		(r >= 0x3000 && r <= 0x303F) || // CJK Symbols & Punctuation
-		(r >= 0x3040 && r <= 0x309F) || // Hiragana
-		(r >= 0x30A0 && r <= 0x30FF) || // Katakana
-		(r >= 0x3100 && r <= 0x312F) || // Bopomofo
-		(r >= 0x3130 && r <= 0x318F) || // Hangul Compatibility Jamo
-		(r >= 0x31A0 && r <= 0x31BF) || // Bopomofo Extended
-		(r >= 0x31C0 && r <= 0x31EF) || // CJK Strokes
-		(r >= 0x3200 && r <= 0x33FF) || // Enclosed CJK / CJK Compatibility
-		(r >= 0x3400 && r <= 0x4DBF) || // CJK Extension A
-		(r >= 0x4E00 && r <= 0x9FFF) || // CJK Unified Ideographs
-		(r >= 0xAC00 && r <= 0xD7AF) || // Hangul Syllables
-		(r >= 0xF900 && r <= 0xFAFF) || // CJK Compatibility Ideographs
-		(r >= 0xFE10 && r <= 0xFE19) || // Vertical Forms
-		(r >= 0xFE30 && r <= 0xFE6F) || // CJK Compatibility Forms
-		(r >= 0xFF01 && r <= 0xFF60) || // Fullwidth Forms
-		(r >= 0xFFE0 && r <= 0xFFE6) || // Fullwidth Signs
-		(r >= 0x1B000 && r <= 0x1B0FF) || // Kana Supplement
-		(r >= 0x1F200 && r <= 0x1F2FF) || // Enclosed Ideographic Supplement
-		(r >= 0x20000 && r <= 0x2A6DF) || // CJK Extension B
-		(r >= 0x2A700 && r <= 0x2B73F) || // CJK Extension C
-		(r >= 0x2B740 && r <= 0x2B81F) || // CJK Extension D
-		(r >= 0x2B820 && r <= 0x2CEAF) || // CJK Extension E
-		(r >= 0x2F800 && r <= 0x2FA1F) || // CJK Compatibility Supplement
-		(r >= 0x30000 && r <= 0x3134F) // CJK Extension G
+	return false
 }
 
 // stringWidth returns the visual display width of s.
